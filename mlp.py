@@ -1,4 +1,17 @@
 import tensorflow as tf
+import numpy as np
+
+params = {
+        "learning_rate": 0.001,
+        "training_epochs": 15,
+        "batch_size": 100,
+        "display_step": 5
+        }
+
+net_params = {
+        "n_input": 784, # MNIST, iow
+        "n_classes": 10
+        }
 
 def create_mlp(size):
     # h1 = tf.Variable(something)
