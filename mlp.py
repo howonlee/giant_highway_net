@@ -15,10 +15,8 @@ net_params = {
         "n_classes": 10
         }
 
-def create_mlp(size):
+def create_mlp(size, curr_x):
     # make vars
-    x = tf.placeholder("float", [None, net_params["n_input"]])
-    y = tf.placeholder("float", [None, net_params["n_classes"]])
     h1 = tf.Variable(tf.random_normal([net_params["n_input"], size]))
     b1 = tf.Variable(tf.random_normal([size]))
     # h2 = tf.Variable(something) ????
@@ -27,10 +25,10 @@ def create_mlp(size):
     bout = tf.Variable(tf.random_normal([net_params["n_classes"]]))
 
     # make layers
-    layer_1 = tf.add(tf.matmul(x, h1), b1)
+    layer_1 = tf.add(tf.matmul(curr_x, h1), b1)
     layer_1 = tf.nn.relu(layer_1)
     out_layer = tf.add(tf.matmul(layer_1, out), bout)
-    return out_layer, y
+    return out_layer
 
 def create_loss(mlp, y):
     return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(mlp, y))
@@ -42,7 +40,9 @@ if __name__ == "__main__":
     with gzip.open("mnist.pkl.gz") as mnist_file:
         train, valid, test = cPickle.load(mnist_file)
     for size in xrange(50, 1000, 50):
-        curr_mlp, curr_y = create_mlp(size)
+        curr_x = tf.placeholder("float", [None, net_params["n_input"]])
+        curr_y = tf.placeholder("float", [None, net_params["n_classes"]])
+        curr_mlp = create_mlp(size, curr_x)
         curr_loss = create_loss(curr_mlp, curr_y)
         curr_opt = create_opt(curr_loss)
         init = tf.initialize_all_variables()
@@ -56,6 +56,8 @@ if __name__ == "__main__":
                 for i in range(total_batch):
                     batch_start = i * params["batch_size"]
                     batch_x, batch_y = train[0][batch_start:batch_start+params["batch_size"]], train[1][batch_start:batch_start+params["batch_size"]]
+                    print batch_y # onehotify it
+                    curr_feed_dict = {curr_x: batch_x, curr_y: batch_y}
                     _, c = sess.run([curr_opt, curr_loss], feed_dict=curr_feed_dict)
                     # Compute average loss
                     avg_cost += c / total_batch
