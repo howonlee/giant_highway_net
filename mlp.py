@@ -42,32 +42,25 @@ if __name__ == "__main__":
     with gzip.open("mnist.pkl.gz") as mnist_file:
         train, valid, test = cPickle.load(mnist_file)
     for size in xrange(50, 1000, 50):
-        curr_mlp = create_mlp(size)
-        curr_loss = create_loss(curr_mlp)
+        curr_mlp, curr_y = create_mlp(size)
+        curr_loss = create_loss(curr_mlp, curr_y)
         curr_opt = create_opt(curr_loss)
         init = tf.initialize_all_variables()
         with tf.Session() as sess:
             sess.run(init)
             for epoch in xrange(params["training_epochs"]):
                 avg_cost = 0.0
-                total_batch = int(len(train)/params["batch_size"])
+                total_batch = int(len(train[0])/params["batch_size"])
+                print "total batch", total_batch
                 # Loop over all batches
                 for i in range(total_batch):
-###############################3
-###############################3
-###############################3
-###############################3
-###############################3
-                    batch_x, batch_y = mnist.train.next_batch(batch_size)
-                    _, c = sess.run([optimizer, cost], feed_dict={x: batch_x,
-                                                                  y: batch_y})
+                    batch_start = i * params["batch_size"]
+                    batch_x, batch_y = train[0][batch_start:batch_start+params["batch_size"]], train[1][batch_start:batch_start+params["batch_size"]]
+                    _, c = sess.run([curr_opt, curr_loss], feed_dict=curr_feed_dict)
                     # Compute average loss
                     avg_cost += c / total_batch
                 # Display logs per epoch step
                 if epoch % params["display_step"] == 0:
                     print "Epoch:", '%04d' % (epoch+1), "cost=", \
                         "{:.9f}".format(avg_cost)
-    print "Optimization Finished!"
-
-                stuff
-            print "opt finished"
+        print "opt finished"
