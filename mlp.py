@@ -36,6 +36,12 @@ def create_loss(mlp, y):
 def create_opt(loss):
     return tf.train.AdamOptimizer(learning_rate = params["learning_rate"]).minimize(loss)
 
+def onehotify(batch):
+    new_batch = np.zeros((len(batch), net_params["n_classes"]))
+    for idx, member in enumerate(batch):
+        new_batch[idx, member] = 1.0
+    return new_batch
+
 if __name__ == "__main__":
     with gzip.open("mnist.pkl.gz") as mnist_file:
         train, valid, test = cPickle.load(mnist_file)
@@ -55,8 +61,7 @@ if __name__ == "__main__":
                 # Loop over all batches
                 for i in range(total_batch):
                     batch_start = i * params["batch_size"]
-                    batch_x, batch_y = train[0][batch_start:batch_start+params["batch_size"]], train[1][batch_start:batch_start+params["batch_size"]]
-                    print batch_y # onehotify it
+                    batch_x, batch_y = train[0][batch_start:batch_start+params["batch_size"]], onehotify(train[1][batch_start:batch_start+params["batch_size"]])
                     curr_feed_dict = {curr_x: batch_x, curr_y: batch_y}
                     _, c = sess.run([curr_opt, curr_loss], feed_dict=curr_feed_dict)
                     # Compute average loss
@@ -65,4 +70,5 @@ if __name__ == "__main__":
                 if epoch % params["display_step"] == 0:
                     print "Epoch:", '%04d' % (epoch+1), "cost=", \
                         "{:.9f}".format(avg_cost)
-        print "opt finished"
+            print "opt finished"
+            # now measure accuracy in valid set, friendo
