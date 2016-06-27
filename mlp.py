@@ -14,20 +14,22 @@ net_params = {
         }
 
 def create_mlp(size):
+    x = something
+    y = something
     # h1 = tf.Variable(something)
-    # h2 = tf.Variable(something)
+    # h2 = tf.Variable(something) ????
     # out = tf.Variable(something)
 
     # b1 = tf.Variable(something)
-    # b2 = tf.Variable(something)
+    # b2 = tf.Variable(something) ???
     # bout = tf.Variable(something)
-    return size
+    return out, y
 
-def create_loss(mlp):
-    pass
+def create_loss(mlp, y):
+    return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(mlp, y))
 
 def create_opt(loss):
-    pass
+    return tf.train.AdamOptimizer(learning_rate = params.learning_rate).minimize(loss)
 
 if __name__ == "__main__":
     for size in xrange(50, 1000, 50):
