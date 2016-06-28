@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import cPickle
 import gzip
+import datetime
 
 params = {
         "learning_rate": 0.001,
@@ -54,21 +55,26 @@ if __name__ == "__main__":
         init = tf.initialize_all_variables()
         with tf.Session() as sess:
             sess.run(init)
+            print "size: ", size
+            print "================="
             for epoch in xrange(params["training_epochs"]):
+                print "epoch: ", epoch, "time: ", datetime.datetime.now()
                 avg_cost = 0.0
                 total_batch = int(len(train[0])/params["batch_size"])
-                print "total batch", total_batch
-                # Loop over all batches
+                # print "total batch", total_batch
                 for i in range(total_batch):
                     batch_start = i * params["batch_size"]
-                    batch_x, batch_y = train[0][batch_start:batch_start+params["batch_size"]], onehotify(train[1][batch_start:batch_start+params["batch_size"]])
+                    # ugly, deal with it
+                    batch_x, batch_y =\
+                            train[0][batch_start:batch_start+params["batch_size"]],\
+                            onehotify(train[1][batch_start:batch_start+params["batch_size"]])
                     curr_feed_dict = {curr_x: batch_x, curr_y: batch_y}
                     _, c = sess.run([curr_opt, curr_loss], feed_dict=curr_feed_dict)
-                    # Compute average loss
                     avg_cost += c / total_batch
-                # Display logs per epoch step
-                if epoch % params["display_step"] == 0:
-                    print "Epoch:", '%04d' % (epoch+1), "cost=", \
-                        "{:.9f}".format(avg_cost)
+                # if epoch % params["display_step"] == 0:
+                #     print "Epoch:", '%04d' % (epoch+1), "cost=", \
+                #         "{:.9f}".format(avg_cost)
             print "opt finished"
-            # now measure accuracy in valid set, friendo
+            corrects = tf.equal(tf.argmax(curr_mlp, 1), tf.argmax(curr_y, 1))
+            acc = tf.reduce_mean(tf.cast(corrects, "float"))
+            print "acc: ", acc.eval({curr_x: test[0], curr_y: onehotify(test[1])})
