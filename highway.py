@@ -6,7 +6,7 @@ import gzip
 import datetime
 
 params = {
-        "training_epochs": 200,
+        "training_epochs": 30,
         "batch_size": 200,
         "display_step": 1
         }
@@ -14,13 +14,14 @@ params = {
 net_params = {
         "n_input": 3072, # CIFAR-100, iow
         "n_classes": 100,
-        "n_layers": 20
+        "n_layers": 50
         }
 
-def highway_layer(x, size, keep_prob):
-    h_stddev = math.sqrt(3.0 / (size + size))
-    h = tf.Variable(tf.truncated_normal([size, size], stddev=h_stddev))
-    h_T = tf.Variable(tf.truncated_normal([size, size], stddev=h_stddev))
+def highway_layer(x, size, keep_prob, num):
+    hname = 'highway-h' + str(num)
+    htname = 'highway-ht' + str(num)
+    h = tf.get_variable(hname, shape=[size, size], initializer=tf.contrib.layers.xavier_initializer())
+    h_T = tf.get_variable(htname, shape=[size, size], initializer=tf.contrib.layers.xavier_initializer())
     b = tf.Variable(tf.constant(0.1, shape=[size]))
     b_T = tf.Variable(tf.constant(-2.0, shape=[size])) # carry bias
     layer_T = tf.add(tf.matmul(x, h_T), b_T)
@@ -33,20 +34,18 @@ def highway_layer(x, size, keep_prob):
 
 def create_highway(size, curr_x, keep_prob):
     # make vars
-    h1_stddev = math.sqrt(3.0 / (net_params["n_input"] + size))
-    h1 = tf.Variable(tf.truncated_normal([net_params["n_input"], size], stddev=h1_stddev))
-    b1 = tf.Variable(tf.constant(0.1, shape=[size])) # constant bias
-    out_stddev = math.sqrt(3.0 / (size + net_params["n_classes"]))
-    out = tf.Variable(tf.truncated_normal([size, net_params["n_classes"]], stddev=out_stddev))
-    bout = tf.Variable(tf.constant(0.1, shape=[net_params["n_classes"]]))
+    h1 = tf.get_variable('h1', [net_params["n_input"], size], initializer=tf.contrib.layers.xavier_initializer())
+    b1 = tf.Variable(tf.constant(0.1, shape=[size]))
+    out = tf.get_variable('out', [size, net_params['n_classes']], initializer=tf.contrib.layers.xavier_initializer())
+    bout = tf.Variable(tf.constant(0.1, shape=[net_params['n_classes']]))
 
     # make layers
     layer_1 = tf.add(tf.matmul(curr_x, h1), b1)
     layer_1 = tf.nn.dropout(layer_1, keep_prob)
     layer_1 = tf.nn.relu(layer_1)
     curr_layer = layer_1
-    for layer in xrange(net_params["n_layers"]):
-        curr_layer = highway_layer(curr_layer, size, keep_prob)
+    for layernum in xrange(net_params["n_layers"]):
+        curr_layer = highway_layer(curr_layer, size, keep_prob, layernum)
     out_layer = tf.add(tf.matmul(curr_layer, out), bout)
     return out_layer
 
@@ -54,7 +53,7 @@ def create_loss(highway, y):
     return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(highway, y))
 
 def create_opt(loss):
-    return tf.train.GradientDescentOptimizer(1e-2).minimize(loss)
+    return tf.train.MomentumOptimizer(1e-3, 0.95)
 
 def onehotify(batch):
     new_batch = np.zeros((len(batch), net_params["n_classes"]))
@@ -76,6 +75,9 @@ if __name__ == "__main__":
         curr_highway = create_highway(size, curr_x, keep_prob)
         curr_loss = create_loss(curr_highway, curr_y)
         curr_opt = create_opt(curr_loss)
+        gvs = curr_opt.compute_gradients(curr_loss)
+        clipped = [(tf.clip_by_norm(grad, 15), var) for grad, var in gvs]
+        opt_application = curr_opt.apply_gradients(clipped)
         init = tf.initialize_all_variables()
         with tf.Session() as sess:
             sess.run(init)
@@ -94,8 +96,8 @@ if __name__ == "__main__":
                     batch_x, batch_y =\
                             train[0][batch_start:batch_start+params["batch_size"]],\
                             onehotify(train[1][batch_start:batch_start+params["batch_size"]])
-                    curr_feed_dict = {keep_prob:0.5, curr_x: batch_x, curr_y: batch_y}
-                    _, c = sess.run([curr_opt, curr_loss], feed_dict=curr_feed_dict)
+                    curr_feed_dict = {keep_prob:0.8, curr_x: batch_x, curr_y: batch_y}
+                    _, c = sess.run([opt_application, curr_loss], feed_dict=curr_feed_dict)
                     avg_cost += c / total_batch
                 corrects = tf.equal(tf.argmax(curr_highway, 1), tf.argmax(curr_y, 1))
                 acc = tf.reduce_mean(tf.cast(corrects, "float"))
