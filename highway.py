@@ -13,19 +13,29 @@ params = {
 
 net_params = {
         "n_input": 3072, # CIFAR-100, iow
-        "n_classes": 100
+        "n_classes": 100,
+        "n_layers": 40
         }
+
+def highway_layer(x, size, keep_prob):
+    h_stddev = math.sqrt(3.0 / (size + size))
+    h = tf.Variable(tf.truncated_normal([size, size], stddev=h_stddev))
+    h_T = tf.Variable(tf.truncated_normal([size, size], stddev=h_stddev))
+    b = tf.Variable(tf.constant(0.1, shape=[size]))
+    b_T = tf.Variable(tf.constant(-1.0, shape=[size])) # carry bias
+    layer_T = tf.add(tf.matmul(x, h_T), b_T)
+    layer_T = tf.sigmoid(layer_T)
+    layer_C = tf.sub(1.0, layer_T)
+    layer_H = tf.add(tf.matmul(x, h), b)
+    layer_H = tf.nn.dropout(layer_H, keep_prob)
+    layer_H = tf.nn.relu(layer_H)
+    return tf.add(tf.mul(layer_H, layer_T), tf.mul(x, layer_C))
 
 def create_highway(size, curr_x, keep_prob):
     # make vars
     h1_stddev = math.sqrt(3.0 / (net_params["n_input"] + size))
     h1 = tf.Variable(tf.truncated_normal([net_params["n_input"], size], stddev=h1_stddev))
     b1 = tf.Variable(tf.constant(0.1, shape=[size])) # constant bias
-    h2_stddev = math.sqrt(3.0 / (size + size))
-    h2 = tf.Variable(tf.truncated_normal([size, size], stddev=h2_stddev))
-    h2_T = tf.Variable(tf.truncated_normal([size, size], stddev=h2_stddev))
-    b2 = tf.Variable(tf.constant(0.1, shape=[size]))
-    b2_T = tf.Variable(tf.constant(-1.0, shape=[size])) # carry bias
     out_stddev = math.sqrt(3.0 / (size + net_params["n_classes"]))
     out = tf.Variable(tf.truncated_normal([size, net_params["n_classes"]], stddev=out_stddev))
     bout = tf.Variable(tf.constant(0.1, shape=[net_params["n_classes"]]))
@@ -34,14 +44,10 @@ def create_highway(size, curr_x, keep_prob):
     layer_1 = tf.add(tf.matmul(curr_x, h1), b1)
     layer_1 = tf.nn.dropout(layer_1, keep_prob)
     layer_1 = tf.nn.relu(layer_1)
-    layer_2_T = tf.add(tf.matmul(layer_1, h2_T), b2_T)
-    layer_2_T = tf.sigmoid(layer_2_T)
-    layer_2_C = tf.sub(1.0, layer_2_T)
-    layer_2_H = tf.add(tf.matmul(layer_1, h2), b2)
-    layer_2_H = tf.nn.dropout(layer_2_H, keep_prob)
-    layer_2_H = tf.nn.relu(layer_2_H)
-    layer_2 = tf.add(tf.mul(layer_2_H, layer_2_T), tf.mul(layer_1, layer_2_C))
-    out_layer = tf.add(tf.matmul(layer_2, out), bout)
+    curr_layer = layer_1
+    for layer in xrange(net_params["n_layers"]):
+        curr_layer = highway_layer(curr_layer, size, keep_prob)
+    out_layer = tf.add(tf.matmul(curr_layer, out), bout)
     return out_layer
 
 def create_loss(highway, y):
@@ -63,7 +69,7 @@ if __name__ == "__main__":
     with open("cifar-100-python/test", "rb") as test_file:
         test_dict = cPickle.load(test_file)
         test = [test_dict['data'] / 255.0, np.array(test_dict['fine_labels'])]
-    for size in [50]:
+    for size in [500]:
         curr_x = tf.placeholder("float", [None, net_params["n_input"]])
         curr_y = tf.placeholder("float", [None, net_params["n_classes"]])
         keep_prob = tf.placeholder("float")
@@ -81,7 +87,7 @@ if __name__ == "__main__":
                 total_batch = int(len(train[0])/params["batch_size"])
                 # print "total batch", total_batch
                 for i in range(total_batch):
-                    if i % 5 == 0:
+                    if i % 10 == 0:
                         print i, " / ", total_batch, datetime.datetime.now()
                     batch_start = i * params["batch_size"]
                     # ugly, deal with it
