@@ -14,7 +14,7 @@ params = {
 net_params = {
         "n_input": 3072, # CIFAR-100, iow
         "n_classes": 100,
-        "n_layers": 40
+        "n_layers": 20
         }
 
 def highway_layer(x, size, keep_prob):
@@ -22,7 +22,7 @@ def highway_layer(x, size, keep_prob):
     h = tf.Variable(tf.truncated_normal([size, size], stddev=h_stddev))
     h_T = tf.Variable(tf.truncated_normal([size, size], stddev=h_stddev))
     b = tf.Variable(tf.constant(0.1, shape=[size]))
-    b_T = tf.Variable(tf.constant(-1.0, shape=[size])) # carry bias
+    b_T = tf.Variable(tf.constant(-2.0, shape=[size])) # carry bias
     layer_T = tf.add(tf.matmul(x, h_T), b_T)
     layer_T = tf.sigmoid(layer_T)
     layer_C = tf.sub(1.0, layer_T)
@@ -54,7 +54,7 @@ def create_loss(highway, y):
     return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(highway, y))
 
 def create_opt(loss):
-    return tf.train.AdamOptimizer().minimize(loss)
+    return tf.train.GradientDescentOptimizer(1e-2).minimize(loss)
 
 def onehotify(batch):
     new_batch = np.zeros((len(batch), net_params["n_classes"]))
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     with open("cifar-100-python/test", "rb") as test_file:
         test_dict = cPickle.load(test_file)
         test = [test_dict['data'] / 255.0, np.array(test_dict['fine_labels'])]
-    for size in [500]:
+    for size in [50]:
         curr_x = tf.placeholder("float", [None, net_params["n_input"]])
         curr_y = tf.placeholder("float", [None, net_params["n_classes"]])
         keep_prob = tf.placeholder("float")
