@@ -6,8 +6,7 @@ import gzip
 import datetime
 
 params = {
-        "learning_rate": 0.05,
-        "training_epochs": 1,
+        "training_epochs": 25,
         "batch_size": 200,
         "display_step": 1
         }
@@ -43,7 +42,7 @@ def create_loss(mlp, y):
     return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(mlp, y))
 
 def create_opt(loss):
-    return tf.train.AdamOptimizer(learning_rate = params["learning_rate"]).minimize(loss)
+    return tf.train.AdamOptimizer().minimize(loss)
 
 def onehotify(batch):
     new_batch = np.zeros((len(batch), net_params["n_classes"]))
@@ -58,7 +57,7 @@ if __name__ == "__main__":
     with open("cifar-100-python/test", "rb") as test_file:
         test_dict = cPickle.load(test_file)
         test = [test_dict['data'] / 255.0, np.array(test_dict['fine_labels'])]
-    for size in xrange(1300, 2500, 500):
+    for size in xrange(500, 2500, 500):
         curr_x = tf.placeholder("float", [None, net_params["n_input"]])
         curr_y = tf.placeholder("float", [None, net_params["n_classes"]])
         keep_prob = tf.placeholder("float")
@@ -76,7 +75,7 @@ if __name__ == "__main__":
                 total_batch = int(len(train[0])/params["batch_size"])
                 # print "total batch", total_batch
                 for i in range(total_batch):
-                    if i % 5 == 0:
+                    if i % 20 == 0:
                         print i, " / ", total_batch, datetime.datetime.now()
                     batch_start = i * params["batch_size"]
                     # ugly, deal with it
