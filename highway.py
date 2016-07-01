@@ -23,7 +23,7 @@ def highway_layer(x, size, keep_prob, num):
     h = tf.get_variable(hname, shape=[size, size], initializer=tf.contrib.layers.xavier_initializer())
     h_T = tf.get_variable(htname, shape=[size, size], initializer=tf.contrib.layers.xavier_initializer())
     b = tf.Variable(tf.constant(0.1, shape=[size]))
-    b_T = tf.Variable(tf.constant(-2.0, shape=[size])) # carry bias
+    b_T = tf.Variable(tf.constant(-20.0, shape=[size])) # carry bias
     layer_T = tf.add(tf.matmul(x, h_T), b_T)
     layer_T = tf.sigmoid(layer_T)
     layer_C = tf.sub(1.0, layer_T)
@@ -53,7 +53,7 @@ def create_loss(highway, y):
     return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(highway, y))
 
 def create_opt(loss):
-    return tf.train.MomentumOptimizer(1e-3, 0.95)
+    return tf.train.AdamOptimizer()
 
 def onehotify(batch):
     new_batch = np.zeros((len(batch), net_params["n_classes"]))
